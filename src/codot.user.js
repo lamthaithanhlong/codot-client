@@ -146,16 +146,18 @@
     }
 
     function setupHelpPanel(f) {
+        let isApiCallInProgress = false;
+    
         jQuery('#codot-pnl-help').append(`
-        <p>When your tests fail, I can take a look at your solution and help you with failed tests. Do you want me to try?</p>
-        <button id='codot-help'>Yeah, go ahead</button>
-        <div id='codot-help-level-selection' style='display:none;'>
-            <p>Please select the level of help you need:</p>
-            <div><button id='codot-help-level-1'>Level 1: Hints</button></div>
-            <div><button id='codot-help-level-2'>Level 2: Partial Code</button></div>
-            <div><button id='codot-help-level-3'>Level 3: Detailed Explanation</button></div>
-        </div>
-        <div id='codot-help-reply'></div>
+            <p>When your tests fail, I can take a look at your solution and help you with failed tests. Do you want me to try?</p>
+            <button id='codot-help'>Yeah, go ahead</button>
+            <div id='codot-help-level-selection' style='display:none;'>
+                <p>Please select the level of help you need:</p>
+                <div><button id='codot-help-level-1'>Level 1: Hints</button></div>
+                <div><button id='codot-help-level-2'>Level 2: Partial Code</button></div>
+                <div><button id='codot-help-level-3'>Level 3: Detailed Explanation</button></div>
+            </div>
+            <div id='codot-help-reply'></div>
         `);
     
         jQuery('#codot-help').button().on("click", function() {
@@ -163,39 +165,47 @@
             jQuery(this).hide();
         });
     
-        ['1', '2', '3'].forEach(level => {
-            jQuery(document).on('click', `#codot-help-level-${level}`, function() {
-                let helpOutput = jQuery('#codot-help-reply');
-                let randomNoise = getRandomNoise();
-                jQuery('#help-copy-markdown').remove();
-                helpOutput.empty().text(`${randomNoise}`);
-                
-                let runner = App.instance.controller?.outputPanel?.runner;
-                if(!runner || !runner.request || !runner.response) {
-                    f({ reply: "You need to run tests first!" });
-                    return;
-                }
-                let { request, response } = runner;
-                let pathElems = window.location.pathname.split('/');
-                let kataId    = pathElems[2];
-                let userCode  = request.code;
-                let language  = request.language;
-                let runnerResponse = response;
+        function makeApiCall(level) {
+            if (isApiCallInProgress) return;
     
-                if(response.result?.completed){
-                    f({ reply: "All your tests passed! Good job!" });
-                    createFirework();
-                    return;
-                }
+            isApiCallInProgress = true;
+            jQuery('#codot-help-level-1, #codot-help-level-2, #codot-help-level-3').prop('disabled', true);
     
-                let openAIRequestData = {
-                    model: "gpt-3.5-turbo",
-                    messages: [
-                        {role: "system", content: `You are a helpful coding assistant for Codewars kata. Provide assistance at level ${level}.
-                        Level 1: Give only hints, explanations, and sample syntax.
-                        Level 2: Include level 1 but also give partial pieces of code and some comments.
-                        Level 3: Include level 2 but explain in really detailed manner, tell everything, and show complete samples.`},
-                        {role: "user", content: `I'm working on a Codewars kata (ID: ${kataId}) in ${language}. Here's my code:
+            let helpOutput = jQuery('#codot-help-reply');
+            let randomNoise = getRandomNoise();
+            jQuery('#help-copy-markdown').remove();
+            helpOutput.text(`${randomNoise}`);
+            
+            let runner = App.instance.controller?.outputPanel?.runner;
+            if(!runner || !runner.request || !runner.response) {
+                f({ reply: "You need to run tests first!" });
+                isApiCallInProgress = false;
+                jQuery('#codot-help-level-1, #codot-help-level-2, #codot-help-level-3').prop('disabled', false);
+                return;
+            }
+            let { request, response } = runner;
+            let pathElems = window.location.pathname.split('/');
+            let kataId    = pathElems[2];
+            let userCode  = request.code;
+            let language  = request.language;
+            let runnerResponse = response;
+    
+            if(response.result?.completed){
+                f({ reply: "All your tests passed! Good job!" });
+                createFirework();
+                isApiCallInProgress = false;
+                jQuery('#codot-help-level-1, #codot-help-level-2, #codot-help-level-3').prop('disabled', false);
+                return;
+            }
+    
+            let openAIRequestData = {
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {role: "system", content: `You are a helpful coding assistant for Codewars kata. Provide assistance at level ${level}.
+                    Level 1: Give only hints, explanations, and sample syntax.
+                    Level 2: Include level 1 but also give partial pieces of code and some comments.
+                    Level 3: Include level 2 but explain in really detailed manner, tell everything, and show complete samples.`},
+                    {role: "user", content: `I'm working on a Codewars kata (ID: ${kataId}) in ${language}. Here's my code:
     
     ${userCode}
     
@@ -203,43 +213,56 @@
     ${JSON.stringify(runnerResponse, null, 2)}
     
     Please help me understand what's wrong and how to fix it at assistance level ${level}.`}
-                    ]
-                };
+                ]
+            };
     
-                let getHelpReq = {
-                    url: 'https://api.openai.com/v1/chat/completions',
-                    method: 'POST',
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": api_key
-                    },
-                    responseType: 'json',
-                    onerror: function(resp) {
-                        let msg = "I am sorry, something bad happened, I am unable to help you.";
-                        if(resp?.error)
-                            msg += '\n\n' + resp.error;
-                        f({reply: msg });
-                    }
-                };
+            let getHelpReq = {
+                url: 'https://api.openai.com/v1/chat/completions',
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": api_key
+                },
+                responseType: 'json',
+                onerror: function(resp) {
+                    let msg = "I am sorry, something bad happened, I am unable to help you.";
+                    if(resp?.error)
+                        msg += '\n\n' + resp.error;
+                    f({reply: msg });
+                    isApiCallInProgress = false;
+                    jQuery('#codot-help-level-1, #codot-help-level-2, #codot-help-level-3').prop('disabled', false);
+                }
+            };
     
-                getHelpReq.data = JSON.stringify(openAIRequestData);
-                getHelpReq.onreadystatechange = function(resp){
-                    if (resp.readyState !== 4) return;
+            getHelpReq.data = JSON.stringify(openAIRequestData);
+            getHelpReq.onreadystatechange = function(resp){
+                if (resp.readyState !== 4) return;
     
-                    if (resp.status >= 400) {
-                        f({reply: `Something went wrong!\n${resp.response?.error?.message ?? ""}`});
-                        return;
-                    }
+                if (resp.status >= 400) {
+                    f({reply: `Something went wrong!\n${resp.response?.error?.message ?? ""}`});
+                    isApiCallInProgress = false;
+                    jQuery('#codot-help-level-1, #codot-help-level-2, #codot-help-level-3').prop('disabled', false);
+                    return;
+                }
     
-                    const msgResp = resp.response?.choices[0]?.message?.content;
-                    if(!msgResp) {
-                        f({reply: "I got no response from the server, I think something went wrong."});
-                        return;
-                    }
-                    f({reply: msgResp });
-                };
+                const msgResp = resp.response?.choices[0]?.message?.content;
+                if(!msgResp) {
+                    f({reply: "I got no response from the server, I think something went wrong."});
+                    isApiCallInProgress = false;
+                    jQuery('#codot-help-level-1, #codot-help-level-2, #codot-help-level-3').prop('disabled', false);
+                    return;
+                }
+                f({reply: msgResp });
+                isApiCallInProgress = false;
+                jQuery('#codot-help-level-1, #codot-help-level-2, #codot-help-level-3').prop('disabled', false);
+            };
     
-                GM_xmlhttpRequest(getHelpReq);
+            GM_xmlhttpRequest(getHelpReq);
+        }
+    
+        ['1', '2', '3'].forEach(level => {
+            jQuery(document).on('click', `#codot-help-level-${level}`, function() {
+                makeApiCall(level);
             });
         });
     }
