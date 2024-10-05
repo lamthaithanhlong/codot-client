@@ -132,7 +132,7 @@
 
     function createFirework() {
         const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-        for (let i = 0; i < 5; i++) {
+        for (let i = 0; i < 20; i++) {
             const firework = document.createElement('div');
             firework.classList.add('firework');
             firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
@@ -141,7 +141,7 @@
             document.body.appendChild(firework);
             setTimeout(() => {
                 firework.remove();
-            }, 1000);
+            }, 4000);
         }
     }
 
