@@ -527,45 +527,105 @@
     }
 
     function showReviewDialog(fGetSnippets) {
-
         const dlgId = 'dlgKatauthor';
         jQuery(`#${dlgId}`).remove();
         jQuery('body').append(`
-    <div id='${dlgId}' title='Katauthor Review'>
-      <div id="pnlKatauthor" class='codot_panel'>
-        <p>
-          Before you publish your code, I can review your snippets for conformance with Codewars authoring guidelines.
-          I am just a bot, but my review can help you find the most common mistakes done by unexperienced authors and translators,
-          and save you negative feedback during actual review.
-        </p>
-        <p>Do you want me to try?</p>
-        <p style='color: orange'>NOTE: kata reviews are experimental and reported remarks can be inaccurate. It is strongly recommended to consult them with documentation or Codewars community.</p>
-        <button id='btnKatauthorReview'>Yeah, go ahead</button>
-        <div id='katauthorReply' class='markdown prose w-full'></div>
-      </div>
-    </div>`);
-
+        <div id='${dlgId}' title='Katauthor Review'>
+          <div id="pnlKatauthor" class='codot_panel'>
+            <p>
+              Before you publish your code, I can review your snippets for conformance with Codewars authoring guidelines.
+              I am just a bot, but my review can help you find the most common mistakes done by unexperienced authors and translators,
+              and save you negative feedback during actual review.
+            </p>
+            <p>Do you want me to try?</p>
+            <p style='color: orange'>NOTE: kata reviews are experimental and reported remarks can be inaccurate. It is strongly recommended to consult them with documentation or Codewars community.</p>
+            <button id='btnKatauthorReview'>Yeah, go ahead</button>
+            <div id='katauthorReply' class='markdown prose w-full'></div>
+          </div>
+        </div>`);
+    
         jQuery('#btnKatauthorReview').button().on("click", function() {
             let helpOutput = jQuery('#katauthorReply');
             helpOutput.text('');
             jQuery('#katauthor-copy-markdown').remove();
             const snippets = fGetSnippets();
-
+    
             if(snippets.problem) {
                 helpOutput.text(snippets.problem);
             } else {
                 helpOutput.text('Please give me some time while I review your code...');
-                sendAuthorReviewRequest(snippets, function(e){
-                    const { reply } = e;
-                    helpOutput.html(marked.parse(reply));
+                
+                // Prepare the OpenAI API request
+                let openAIRequestData = {
+                    model: "gpt-3.5-turbo",
+                    messages: [
+                        {role: "system", content: "You are a helpful code reviewer for Codewars kata solutions. Review the provided code snippets for conformance with Codewars authoring guidelines."},
+                        {role: "user", content: `Please review these code snippets for a Codewars kata:
+    
+    Description:
+    ${snippets.description}
+    
+    Complete Solution:
+    ${snippets.completeSolution}
+    
+    Solution Stub:
+    ${snippets.solutionStub}
+    
+    Submission Tests:
+    ${snippets.submissionTests}
+    
+    Example Tests:
+    ${snippets.exampleTests}
+    
+    Preloaded:
+    ${snippets.preloaded}
+    
+    Provide a detailed review focusing on common mistakes, best practices, and conformance with Codewars authoring guidelines.`}
+                    ]
+                };
+    
+                let reviewReq = {
+                    url: 'https://api.openai.com/v1/chat/completions',
+                    method: 'POST',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": api_key
+                    },
+                    responseType: 'json',
+                    onerror: function(resp) {
+                        let msg = "I am sorry, something bad happened, I am unable to help you.";
+                        if(resp?.error)
+                            msg += '\n\n' + resp.error;
+                        helpOutput.text(msg);
+                    }
+                };
+    
+                reviewReq.data = JSON.stringify(openAIRequestData);
+                reviewReq.onreadystatechange = function(resp){
+                    if (resp.readyState !== 4) return;
+    
+                    if (resp.status >= 400) {
+                        helpOutput.text(`Something went wrong!\n${resp.response?.error?.message ?? ""}`);
+                        return;
+                    }
+    
+                    const reviewMessage = resp.response?.choices[0]?.message?.content;
+                    if(!reviewMessage) {
+                        helpOutput.text("I got no response from the server, I think something went wrong.");
+                        return;
+                    }
+                    
+                    helpOutput.html(marked.parse(reviewMessage));
                     helpOutput.after('<button id="katauthor-copy-markdown">Copy as markdown to clipboard</button>');
                     jQuery('#katauthor-copy-markdown').button().on("click", function() {
-                        GM_setClipboard(reply, "text");
+                        GM_setClipboard(reviewMessage, "text");
                     });
-                });
-                //setTimeout(() => { clearInterval(noisesTimer); f({reply: "This is a faked answer"}); }, 10000);
+                };
+    
+                GM_xmlhttpRequest(reviewReq);
             }
         });
+    
         const dlg = jQuery('#' + dlgId).dialog({
             autoOpen: true,
             height: 600,
@@ -579,7 +639,7 @@
                     }
                 }
             ]
-        })
+        });
     }
 
 
@@ -608,28 +668,21 @@
     }
 
     function showForkReviewDialog() {
-
         function fGetSnippets() {
-
-            const descriptionEditor = jQuery('#code_snippet_description').parent().find('.CodeMirror')[0];
-            if(!descriptionEditor) {
-                return {problem: 'I cannot read the description. I need to see the description panel to be able to read it. Please make the description panel visible and try again.'};
+            function getCodeMirrorValue(selector) {
+                const element = jQuery(selector).find('.CodeMirror')[0];
+                return element && element.CodeMirror ? element.CodeMirror.getValue() : '';
             }
-            const cmDescription      = descriptionEditor.CodeMirror.getValue();
-            const cmCompleteSolution = jQuery('#code_snippet_code_field .CodeMirror')[0].CodeMirror.getValue();
-            const cmSolutionStub     = jQuery('#code_snippet_setup_code_field .CodeMirror')[0].CodeMirror.getValue();
-            const cmSubmissionTests  = jQuery('#code_snippet_fixture_field .CodeMirror')[0].CodeMirror.getValue();
-            const cmExampleTests     = jQuery('#code_snippet_example_fixture_field .CodeMirror')[0].CodeMirror.getValue();
-            const cmPreloaded        = jQuery('#code_snippet_package_field .CodeMirror')[0].CodeMirror.getValue();
-
+        
             const snippets = {
-                description:      cmDescription,
-                completeSolution: cmCompleteSolution,
-                solutionStub:     cmSolutionStub,
-                submissionTests:  cmSubmissionTests,
-                exampleTests:     cmExampleTests,
-                preloaded:        cmPreloaded
+                description:      getCodeMirrorValue('#code_snippet_description') || getCodeMirrorValue('#write_descriptionTab'),
+                completeSolution: getCodeMirrorValue('#code_snippet_code_field') || getCodeMirrorValue('#code_answer'),
+                solutionStub:     getCodeMirrorValue('#code_snippet_setup_code_field') || getCodeMirrorValue('#code_setup'),
+                submissionTests:  getCodeMirrorValue('#code_snippet_fixture_field') || getCodeMirrorValue('#code_fixture'),
+                exampleTests:     getCodeMirrorValue('#code_snippet_example_fixture_field') || getCodeMirrorValue('#code_example_fixture'),
+                preloaded:        getCodeMirrorValue('#code_snippet_package_field') || getCodeMirrorValue('#code_package')
             };
+        
             return snippets;
         }
         showReviewDialog(fGetSnippets);
