@@ -168,7 +168,7 @@
                 let helpOutput = jQuery('#codot-help-reply');
                 let randomNoise = getRandomNoise();
                 jQuery('#help-copy-markdown').remove();
-                helpOutput.text(`${randomNoise}`);
+                helpOutput.empty().text(`${randomNoise}`);
                 
                 let runner = App.instance.controller?.outputPanel?.runner;
                 if(!runner || !runner.request || !runner.response) {
@@ -701,6 +701,9 @@
             let helpOutput = jQuery('#codot-help-reply');
             let reply = helpResult.reply;
             helpOutput.html(marked.parse("Here's what I found:\n\n" + reply));
+            
+            // Remove existing copy button before adding a new one
+            jQuery('#help-copy-markdown').remove();
             helpOutput.after('<button id="help-copy-markdown">Copy as markdown to clipboard</button>');
             jQuery('#help-copy-markdown').button().on("click", function() {
                 GM_setClipboard(reply, "text");
