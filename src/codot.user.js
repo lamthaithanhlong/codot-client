@@ -118,7 +118,9 @@
         jQuery('#codot-help').button().on("click", function() {
             let helpOutput = jQuery('#codot-help-reply');
             jQuery('#help-copy-markdown').remove();
-            helpOutput.text('');
+            helpOutput.text('Please wait while I analyze your code...'); // Add waiting message
+    
+            // Existing code to prepare and send the request
             let runner = App.instance.controller?.outputPanel?.runner;
             if(!runner || !runner.request || !runner.response) {
                 f({ reply: "You need to run tests first!" });
@@ -196,7 +198,7 @@
         `);
         jQuery('#codot-review').button().on("click", function() {
             let reviewOutput = jQuery('#codot-review-reply')
-            reviewOutput.text('');
+            reviewOutput.text('Please wait while I analyze your code...');
     
             let pathElems = window.location.pathname.split('/');
             let kataId    = pathElems[2];
@@ -208,10 +210,10 @@
                 messages: [
                     {role: "system", content: "You are a helpful code reviewer for Codewars kata solutions."},
                     {role: "user", content: `Please review this ${language} code for a Codewars kata (ID: ${kataId}):
-    
-    ${solution}
-    
-    Provide a concise review focusing on code quality, efficiency, and best practices.`}
+        
+        ${solution}
+        
+        Provide a concise review focusing on code quality, efficiency, and best practices.`}
                 ]
             };
     
@@ -259,7 +261,7 @@
         <div id='codot-lint-reply'></div>
         `);
         jQuery('#codot-lint').button().on("click", function() {
-            jQuery('#codot-lint-reply').text('');
+            jQuery('#codot-lint-reply').text('Please wait while I analyze your code...');
             let pathElems = window.location.pathname.split('/');
             let kataId    = pathElems[2];
             let language  = pathElems[4] ?? 'unknown';
@@ -270,10 +272,10 @@
                 messages: [
                     {role: "system", content: "You are a helpful code linter. Analyze the code and provide a list of style issues and potential improvements."},
                     {role: "user", content: `Please lint this ${language} code for a Codewars kata (ID: ${kataId}):
-    
-    ${code}
-    
-    Provide a list of linting issues, focusing on code style, potential bugs, and best practices.`}
+        
+        ${code}
+        
+        Provide a list of linting issues, focusing on code style, potential bugs, and best practices.`}
                 ]
             };
     
