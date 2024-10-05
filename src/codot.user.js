@@ -13,6 +13,7 @@
 // @grant        GM_setClipboard
 // @connect      localhost
 // @connect      codot-server.fly.dev
+// @connect      api.openai.com
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
 // @require      http://ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://greasyfork.org/scripts/21927-arrive-js/code/arrivejs.js?version=198809
@@ -21,6 +22,7 @@
 
 (function() {
     'use strict';
+    let api_key = "Bearer YOUR_OPENAI_API_KEY_HERE";
 
     var $ = window.jQuery;
     const JQUERYUI_CSS_URL = '//ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/themes/dark-hive/jquery-ui.min.css';
@@ -119,66 +121,73 @@
             helpOutput.text('');
             let runner = App.instance.controller?.outputPanel?.runner;
             if(!runner || !runner.request || !runner.response) {
-                f({ reply: "You need to run tests firts!" });
+                f({ reply: "You need to run tests first!" });
                 return;
             }
             let { request, response } = runner;
             let pathElems = window.location.pathname.split('/');
             let kataId    = pathElems[2];
             let userCode  = request.code;
-            let userId    = App.instance.currentUser.id;
             let language  = request.language;
             let runnerResponse = response;
-
+    
             if(response.result?.completed){
                 f({ reply: "All your tests passed! Good job!" });
                 return;
             }
-
-            let helpReqData = { kataId, userId, userCode, language, runnerResponse };
-            let noisesTimer = undefined;
-            let getHelpReq = getCodotServiceRequestBase('/halp');
-            let { onabort } = getHelpReq;
-            getHelpReq.onabort = function() { clearInterval(noisesTimer); onabort(); };
-            getHelpReq.onerror = function(resp) {
-                clearInterval(noisesTimer);
-                let msg = "I am sorry, something bad happened, I am unable to help you.";
-                if(resp?.error)
-                    msg += '\n\n' + resp.error;
-                f({reply: msg });
+    
+            let openAIRequestData = {
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {role: "system", content: "You are a helpful coding assistant for Codewars kata."},
+                    {role: "user", content: `I'm working on a Codewars kata (ID: ${kataId}) in ${language}. Here's my code:
+    
+    ${userCode}
+    
+    The tests failed. Here's the test response:
+    ${JSON.stringify(runnerResponse, null, 2)}
+    
+    Please help me understand what's wrong and how to fix it.`}
+                ]
             };
-            getHelpReq.data = JSON.stringify(helpReqData);
+    
+            let getHelpReq = {
+                url: 'https://api.openai.com/v1/chat/completions',
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": api_key
+                },
+                responseType: 'json',
+                onerror: function(resp) {
+                    let msg = "I am sorry, something bad happened, I am unable to help you.";
+                    if(resp?.error)
+                        msg += '\n\n' + resp.error;
+                    f({reply: msg });
+                }
+            };
+    
+            getHelpReq.data = JSON.stringify(openAIRequestData);
             getHelpReq.onreadystatechange = function(resp){
                 if (resp.readyState !== 4) return;
-                clearInterval(noisesTimer);
-
-                if (resp.status == 429) {
-                    f({reply: `You have to wait.\n${resp.response?.message ?? ""}`});
-                    return;
-                } else if (resp.status == 413) {
-                    f({reply: `Ooohhh that's way too much for me!\n${resp.response?.message ?? ""}` });
-                    return;
-                } else if (resp.status >= 400) {
-                    f({reply: `Something went wrong!\n${resp.response?.message ?? ""}`});
+    
+                if (resp.status >= 400) {
+                    f({reply: `Something went wrong!\n${resp.response?.error?.message ?? ""}`});
                     return;
                 }
-
-                const msgResp = resp.response?.message;
+    
+                const msgResp = resp.response?.choices[0]?.message?.content;
                 if(!msgResp) {
                     f({reply: "I got no response from the server, I think something went wrong."});
                     return;
                 }
                 f({reply: msgResp });
             };
+    
             GM_xmlhttpRequest(getHelpReq);
-            //setTimeout(() => { clearInterval(noisesTimer); f({reply: "This is a faked answer"}); }, 10000);
-            noisesTimer = setInterval(() => {
-                let noise = noises[Math.random() * noises.length | 0];
-                helpOutput.append(`<p>${noise}</p>`);
-            }, 1500);
         });
     }
-
+    
     function setupReviewPanel(f) {
         jQuery('#codot-pnl-review').append(`
         <p>I can perform a review of your code. Do you want me to try?</p>
@@ -188,64 +197,64 @@
         jQuery('#codot-review').button().on("click", function() {
             let reviewOutput = jQuery('#codot-review-reply')
             reviewOutput.text('');
-
+    
             let pathElems = window.location.pathname.split('/');
             let kataId    = pathElems[2];
             let solution  = jQuery('#code .CodeMirror')[0].CodeMirror.getValue();
-            let userId    = App.instance.currentUser.id;
             let language  = pathElems[4] ?? 'unknown';
-
-            let reviewReqData = { userId, kataId, language, code: solution };
-            let noisesTimer = undefined;
-            let getReviewReq = getCodotServiceRequestBase('/unclebot');
-            let { onabort } = getReviewReq;
-
-            getReviewReq.onabort = function() { clearInterval(noisesTimer); onabort(); };
-            getReviewReq.onerror = function(resp) {
-                clearInterval(noisesTimer);
-                let msg = "I am sorry, something bad happened, I am unable to help you.";
-                if(resp?.error)
-                    msg += '\n\n' + resp.error;
-                f({reply: msg });
+    
+            let openAIRequestData = {
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {role: "system", content: "You are a helpful code reviewer for Codewars kata solutions."},
+                    {role: "user", content: `Please review this ${language} code for a Codewars kata (ID: ${kataId}):
+    
+    ${solution}
+    
+    Provide a concise review focusing on code quality, efficiency, and best practices.`}
+                ]
             };
-
-            getReviewReq.data = JSON.stringify(reviewReqData);
+    
+            let getReviewReq = {
+                url: 'https://api.openai.com/v1/chat/completions',
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": api_key
+                },
+                responseType: 'json',
+                onerror: function(resp) {
+                    let msg = "I am sorry, something bad happened, I am unable to help you.";
+                    if(resp?.error)
+                        msg += '\n\n' + resp.error;
+                    f({reply: msg });
+                }
+            };
+    
+            getReviewReq.data = JSON.stringify(openAIRequestData);
             getReviewReq.onreadystatechange = function(resp){
                 if (resp.readyState !== 4) return;
-                clearInterval(noisesTimer);
-
-                if (resp.status == 429) {
-                    f({reply: `You have to wait.\n${resp.response?.message ?? ""}`});
-                    return;
-                } else if (resp.status == 413) {
-                    f({reply: `Ooohhh that's way too much for me!\n${resp.response?.message ?? ""}` });
-                    return;
-                } else if (resp.status >= 400) {
-                    f({reply: `Something went wrong!\n${resp.response?.message ?? ""}`});
+    
+                if (resp.status >= 400) {
+                    f({reply: `Something went wrong!\n${resp.response?.error?.message ?? ""}`});
                     return;
                 }
-
-                const msgResp = resp.response?.message;
+    
+                const msgResp = resp.response?.choices[0]?.message?.content;
                 if(!msgResp) {
                     f({reply: "I got no response from the server, I think something went wrong."});
                     return;
                 }
                 f({reply: msgResp });
             };
-
+    
             GM_xmlhttpRequest(getReviewReq);
-            //setTimeout(() => { clearInterval(noisesTimer); f({reply: "This is a faked answer"}); }, 10000);
-
-            noisesTimer = setInterval(() => {
-                let noise = noises[Math.random() * noises.length | 0];
-                reviewOutput.append(`<p>${noise}</p>`);
-            }, 1500);
         });
     }
-
+    
     function setupLinterPanel(f) {
         jQuery('#codot-pnl-lint').append(`
-        <p>I can run linter on your code and check style of your code. Do you want me to try?</p>
+        <p>I can run a linter on your code and check the style of your code. Do you want me to try?</p>
         <button id='codot-lint'>Yeah, go ahead</button>
         <div id='codot-lint-reply'></div>
         `);
@@ -255,38 +264,62 @@
             let kataId    = pathElems[2];
             let language  = pathElems[4] ?? 'unknown';
             let code      = jQuery('#code .CodeMirror')[0].CodeMirror.getValue();
-            let userId    = App.instance.currentUser.id;
-            let lintReq   = getCodotServiceRequestBase('/lint');
-
-            lintReq.onerror = function(resp) {
-                let msg = "I am sorry, something bad happened, I am unable to help you.";
-                if(resp?.error)
-                    msg += '\n\n' + resp.error;
-                f({reply: msg});
+    
+            let openAIRequestData = {
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {role: "system", content: "You are a helpful code linter. Analyze the code and provide a list of style issues and potential improvements."},
+                    {role: "user", content: `Please lint this ${language} code for a Codewars kata (ID: ${kataId}):
+    
+    ${code}
+    
+    Provide a list of linting issues, focusing on code style, potential bugs, and best practices.`}
+                ]
             };
-
-            lintReq.data = JSON.stringify({ code, kataId, language, userId });
+    
+            let lintReq = {
+                url: 'https://api.openai.com/v1/chat/completions',
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": api_key
+                },
+                responseType: 'json',
+                onerror: function(resp) {
+                    let msg = "I am sorry, something bad happened, I am unable to help you.";
+                    if(resp?.error)
+                        msg += '\n\n' + resp.error;
+                    f({reply: msg});
+                }
+            };
+    
+            lintReq.data = JSON.stringify(openAIRequestData);
             lintReq.onreadystatechange = function(resp){
                 if (resp.readyState !== 4) return;
-
-                if (resp.status == 429) {
-                    f({reply: `You have to wait.\n${resp.response?.message ?? ""}`});
-                    return;
-                } else if (resp.status == 413) {
-                    f({reply: `Ooohhh that's way too much for me!\n${resp.response?.message ?? ""}` });
-                    return;
-                } else if (resp.status >= 400) {
-                    f({reply: `Something went wrong!\n${resp.response?.message ?? ""}`});
+    
+                if (resp.status >= 400) {
+                    f({reply: `Something went wrong!\n${resp.response?.error?.message ?? ""}`});
                     return;
                 }
-
-                const lintItems = resp.response?.lintItems;
-                if(!lintItems) {
+    
+                const lintResult = resp.response?.choices[0]?.message?.content;
+                if(!lintResult) {
                     f({reply: "I got no response from the server, I think something went wrong."});
                     return;
                 }
+    
+                // Parse the lintResult into lintItems
+                const lintItems = lintResult.split('\n').filter(item => item.trim() !== '').map((item, index) => ({
+                    message: item,
+                    ruleId: `OPENAI_LINT_${index + 1}`,
+                    ruleLink: '#',
+                    line: null,
+                    col: null
+                }));
+    
                 f({ lintItems });
             };
+    
             GM_xmlhttpRequest(lintReq);
         });
     }
