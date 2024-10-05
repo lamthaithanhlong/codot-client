@@ -31,13 +31,30 @@
         <link href="${JQUERYUI_CSS_URL}" rel="stylesheet" type="text/css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css" type="text/css">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/selectize.js/0.15.2/css/selectize.default.min.css" type="text/css">
-     `);
+    `);
 
-    let css = `
-    .codot_panel > * {
-      margin: 15px
-    }
-`;
+        let css = `
+        .codot_panel > * {
+        margin: 15px
+        }
+    
+        .firework {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 0.5em;
+        height: 0.5em;
+        border-radius: 50%;
+        animation: firework 0.8s ease-out;
+        animation-fill-mode: forwards;
+        }
+    
+        @keyframes firework {
+        0% { width: 0.5em; height: 0.5em; opacity: 1; }
+        100% { width: 5em; height: 5em; opacity: 0; }
+        }
+    `;
     GM_addStyle(css);
 
     function fetchAborted() {
@@ -109,84 +126,121 @@
         "Uncle Bob would be proud."
     ];
 
+    function getRandomNoise() {
+        return noises[Math.floor(Math.random() * noises.length)];
+    }
+
+    function createFirework() {
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+        for (let i = 0; i < 5; i++) {
+            const firework = document.createElement('div');
+            firework.classList.add('firework');
+            firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            firework.style.left = `${Math.random() * 100}%`;
+            firework.style.top = `${Math.random() * 100}%`;
+            document.body.appendChild(firework);
+            setTimeout(() => {
+                firework.remove();
+            }, 1000);
+        }
+    }
+
     function setupHelpPanel(f) {
         jQuery('#codot-pnl-help').append(`
         <p>When your tests fail, I can take a look at your solution and help you with failed tests. Do you want me to try?</p>
         <button id='codot-help'>Yeah, go ahead</button>
+        <div id='codot-help-level-selection' style='display:none;'>
+            <p>Please select the level of help you need:</p>
+            <div><button id='codot-help-level-1'>Level 1: Hints</button></div>
+            <div><button id='codot-help-level-2'>Level 2: Partial Code</button></div>
+            <div><button id='codot-help-level-3'>Level 3: Detailed Explanation</button></div>
+        </div>
         <div id='codot-help-reply'></div>
         `);
+    
         jQuery('#codot-help').button().on("click", function() {
-            let helpOutput = jQuery('#codot-help-reply');
-            jQuery('#help-copy-markdown').remove();
-            helpOutput.text('Please wait while I analyze your code...'); // Add waiting message
+            jQuery('#codot-help-level-selection').show();
+            jQuery(this).hide();
+        });
     
-            // Existing code to prepare and send the request
-            let runner = App.instance.controller?.outputPanel?.runner;
-            if(!runner || !runner.request || !runner.response) {
-                f({ reply: "You need to run tests first!" });
-                return;
-            }
-            let { request, response } = runner;
-            let pathElems = window.location.pathname.split('/');
-            let kataId    = pathElems[2];
-            let userCode  = request.code;
-            let language  = request.language;
-            let runnerResponse = response;
+        ['1', '2', '3'].forEach(level => {
+            jQuery(document).on('click', `#codot-help-level-${level}`, function() {
+                let helpOutput = jQuery('#codot-help-reply');
+                let randomNoise = getRandomNoise();
+                jQuery('#help-copy-markdown').remove();
+                helpOutput.text(`${randomNoise}`);
+                
+                let runner = App.instance.controller?.outputPanel?.runner;
+                if(!runner || !runner.request || !runner.response) {
+                    f({ reply: "You need to run tests first!" });
+                    return;
+                }
+                let { request, response } = runner;
+                let pathElems = window.location.pathname.split('/');
+                let kataId    = pathElems[2];
+                let userCode  = request.code;
+                let language  = request.language;
+                let runnerResponse = response;
     
-            if(response.result?.completed){
-                f({ reply: "All your tests passed! Good job!" });
-                return;
-            }
+                if(response.result?.completed){
+                    f({ reply: "All your tests passed! Good job!" });
+                    createFirework();
+                    return;
+                }
     
-            let openAIRequestData = {
-                model: "gpt-3.5-turbo",
-                messages: [
-                    {role: "system", content: "You are a helpful coding assistant for Codewars kata."},
-                    {role: "user", content: `I'm working on a Codewars kata (ID: ${kataId}) in ${language}. Here's my code:
+                let openAIRequestData = {
+                    model: "gpt-3.5-turbo",
+                    messages: [
+                        {role: "system", content: `You are a helpful coding assistant for Codewars kata. Provide assistance at level ${level}.
+                        Level 1: Give only hints, explanations, and sample syntax.
+                        Level 2: Include level 1 but also give partial pieces of code and some comments.
+                        Level 3: Include level 2 but explain in really detailed manner, tell everything, and show complete samples.`},
+                        {role: "user", content: `I'm working on a Codewars kata (ID: ${kataId}) in ${language}. Here's my code:
     
     ${userCode}
     
     The tests failed. Here's the test response:
     ${JSON.stringify(runnerResponse, null, 2)}
     
-    Please help me understand what's wrong and how to fix it.`}
-                ]
-            };
+    Please help me understand what's wrong and how to fix it at assistance level ${level}.`}
+                    ]
+                };
     
-            let getHelpReq = {
-                url: 'https://api.openai.com/v1/chat/completions',
-                method: 'POST',
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": api_key
-                },
-                responseType: 'json',
-                onerror: function(resp) {
-                    let msg = "I am sorry, something bad happened, I am unable to help you.";
-                    if(resp?.error)
-                        msg += '\n\n' + resp.error;
-                    f({reply: msg });
-                }
-            };
+                let getHelpReq = {
+                    url: 'https://api.openai.com/v1/chat/completions',
+                    method: 'POST',
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": api_key
+                    },
+                    responseType: 'json',
+                    onerror: function(resp) {
+                        let msg = "I am sorry, something bad happened, I am unable to help you.";
+                        if(resp?.error)
+                            msg += '\n\n' + resp.error;
+                        f({reply: msg });
+                    }
+                };
     
-            getHelpReq.data = JSON.stringify(openAIRequestData);
-            getHelpReq.onreadystatechange = function(resp){
-                if (resp.readyState !== 4) return;
+                getHelpReq.data = JSON.stringify(openAIRequestData);
+                getHelpReq.onreadystatechange = function(resp){
+                    if (resp.readyState !== 4) return;
     
-                if (resp.status >= 400) {
-                    f({reply: `Something went wrong!\n${resp.response?.error?.message ?? ""}`});
-                    return;
-                }
+                    if (resp.status >= 400) {
+                        f({reply: `Something went wrong!\n${resp.response?.error?.message ?? ""}`});
+                        return;
+                    }
     
-                const msgResp = resp.response?.choices[0]?.message?.content;
-                if(!msgResp) {
-                    f({reply: "I got no response from the server, I think something went wrong."});
-                    return;
-                }
-                f({reply: msgResp });
-            };
+                    const msgResp = resp.response?.choices[0]?.message?.content;
+                    if(!msgResp) {
+                        f({reply: "I got no response from the server, I think something went wrong."});
+                        return;
+                    }
+                    f({reply: msgResp });
+                };
     
-            GM_xmlhttpRequest(getHelpReq);
+                GM_xmlhttpRequest(getHelpReq);
+            });
         });
     }
     
@@ -198,7 +252,8 @@
         `);
         jQuery('#codot-review').button().on("click", function() {
             let reviewOutput = jQuery('#codot-review-reply')
-            reviewOutput.text('Please wait while I analyze your code...');
+            let randomNoise = getRandomNoise();
+            reviewOutput.text(`${randomNoise}`);
     
             let pathElems = window.location.pathname.split('/');
             let kataId    = pathElems[2];
@@ -261,7 +316,8 @@
         <div id='codot-lint-reply'></div>
         `);
         jQuery('#codot-lint').button().on("click", function() {
-            jQuery('#codot-lint-reply').text('Please wait while I analyze your code...');
+            let randomNoise = getRandomNoise();
+            jQuery('#codot-lint-reply').text(`${randomNoise}`);
             let pathElems = window.location.pathname.split('/');
             let kataId    = pathElems[2];
             let language  = pathElems[4] ?? 'unknown';
