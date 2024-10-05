@@ -382,6 +382,82 @@
         });
     }
 
+    function setupChatPanel(f) {
+        jQuery('#codot-pnl-chat').append(`
+            <p>Ask me any question about your code or the kata. I'll do my best to help!</p>
+            <textarea id='codot-chat-input' rows='3' style='width: 100%; margin-bottom: 10px;'></textarea>
+            <button id='codot-chat-send'>Send</button>
+            <div id='codot-chat-reply'></div>
+        `);
+    
+        jQuery('#codot-chat-send').button().on("click", function() {
+            let chatInput = jQuery('#codot-chat-input');
+            let chatOutput = jQuery('#codot-chat-reply');
+            let userQuestion = chatInput.val().trim();
+    
+            if (userQuestion === '') {
+                chatOutput.text('Please enter a question.');
+                return;
+            }
+    
+            chatOutput.text('Thinking...');
+            chatInput.val('');
+    
+            let pathElems = window.location.pathname.split('/');
+            let kataId = pathElems[2];
+            let language = pathElems[4] ?? 'unknown';
+            let code = jQuery('#code .CodeMirror')[0].CodeMirror.getValue();
+    
+            let openAIRequestData = {
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {role: "system", content: "You are a helpful coding assistant for Codewars kata."},
+                    {role: "user", content: `I'm working on a Codewars kata (ID: ${kataId}) in ${language}. Here's my code:
+    
+    ${code}
+    
+    My question is: ${userQuestion}`}
+                ]
+            };
+    
+            let chatReq = {
+                url: 'https://api.openai.com/v1/chat/completions',
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": api_key
+                },
+                responseType: 'json',
+                onerror: function(resp) {
+                    let msg = "I am sorry, something bad happened, I am unable to help you.";
+                    if(resp?.error)
+                        msg += '\n\n' + resp.error;
+                    f({reply: msg});
+                }
+            };
+    
+            chatReq.data = JSON.stringify(openAIRequestData);
+            chatReq.onreadystatechange = function(resp){
+                if (resp.readyState !== 4) return;
+    
+                if (resp.status >= 400) {
+                    f({reply: `Something went wrong!\n${resp.response?.error?.message ?? ""}`});
+                    return;
+                }
+    
+                const chatResult = resp.response?.choices[0]?.message?.content;
+                if(!chatResult) {
+                    f({reply: "I got no response from the server, I think something went wrong."});
+                    return;
+                }
+    
+                f({reply: chatResult});
+            };
+    
+            GM_xmlhttpRequest(chatReq);
+        });
+    }
+
     function sendAuthorReviewRequest(snippets, f) {
 
         let pathElems = window.location.pathname.split('/');
@@ -584,20 +660,23 @@
         let cwButtonsCount = cwContentDivs.length;
         let btnRestore = cwButtonDivs.last();
 
-        btnRestore.before('<div id="codot-btn-help"  ><a class="inline-block px-4 py-2 rounded-lg">🤖 Help</a><div>');
-        btnRestore.before('<div id="codot-btn-lint"  ><a class="inline-block px-4 py-2 rounded-lg">🤖 Lint</a><div>');
-        btnRestore.before('<div id="codot-btn-review"><a class="inline-block px-4 py-2 rounded-lg">🤖 Review</a><div>');
+        btnRestore.before('<div id="codot-btn-help"  ><a class="inline-block px-4 py-2 rounded-lg">❓ Help</a><div>');
+        btnRestore.before('<div id="codot-btn-lint"  ><a class="inline-block px-4 py-2 rounded-lg">🧹 Lint</a><div>');
+        btnRestore.before('<div id="codot-btn-review"><a class="inline-block px-4 py-2 rounded-lg">📝 Review</a><div>');
+        btnRestore.before('<div id="codot-btn-chat"><a class="inline-block px-4 py-2 rounded-lg">💬 Chat</a></div>');
 
         tabContainer.append('<div id="codot-pnl-help"   class="codot_panel prose md:h-full" style="display: none;"></div>');
         tabContainer.append('<div id="codot-pnl-lint"   class="codot_panel       md:h-full" style="display: none;"></div>');
         tabContainer.append('<div id="codot-pnl-review" class="codot_panel prose md:h-full" style="display: none;"></div>');
+        tabContainer.append('<div id="codot-pnl-chat" class="codot_panel prose md:h-full" style="display: none;"></div>');
 
         let allButtonDivs  = tabBar.children();
         let allContentDivs = tabContainer.children();
         let codotElems = [
             ["#codot-btn-help",   "#codot-pnl-help"  ],
             ["#codot-btn-lint",   "#codot-pnl-lint"  ],
-            ["#codot-btn-review", "#codot-pnl-review"]
+            ["#codot-btn-review", "#codot-pnl-review"],
+            ["#codot-btn-chat",   "#codot-pnl-chat"  ]
         ];
 
         codotElems.forEach(([btnid, pnlid]) => {
@@ -670,8 +749,13 @@
                 });
             }
         });
+
         setupReviewPanel(function(reviewResult) {
             jQuery('#codot-review-reply').html(marked.parse(reviewResult.reply));
+        });
+
+        setupChatPanel(function(chatResult) {
+            jQuery('#codot-chat-reply').html(marked.parse(chatResult.reply));
         });
     });
 
