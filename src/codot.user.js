@@ -14,6 +14,7 @@
 // @connect      localhost
 // @connect      codot-server.fly.dev
 // @connect      api.openai.com
+// @connect      api.night-api.com
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
 // @require      http://ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://greasyfork.org/scripts/21927-arrive-js/code/arrivejs.js?version=198809
@@ -23,6 +24,7 @@
 (function() {
     'use strict';
     let api_key = "Bearer YOUR_OPENAI_API_KEY_HERE";
+    let night_api_key = "YOUR_NIGHT_API_KEY_HERE";
 
     var $ = window.jQuery;
     const JQUERYUI_CSS_URL = '//ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/themes/dark-hive/jquery-ui.min.css';
@@ -132,7 +134,7 @@
 
     function createFirework() {
         const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-        for (let i = 0; i < 20; i++) {
+        for (let i = 0; i < 10; i++) {
             const firework = document.createElement('div');
             firework.classList.add('firework');
             firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
@@ -141,8 +143,33 @@
             document.body.appendChild(firework);
             setTimeout(() => {
                 firework.remove();
-            }, 4000);
+            }, 2000);
         }
+    }
+
+    function getNightImage(callback) {
+        GM_xmlhttpRequest({
+            method: 'GET',
+            url: 'https://api.night-api.com/images/nsfw',
+            headers: {
+                'authorization': night_api_key
+            },
+            onload: function(response) {
+                if (response.status === 200) {
+                    const data = JSON.parse(response.responseText);
+                    if (data.content && data.content.url) {
+                        callback(data.content.url);
+                    } else {
+                        callback(null);
+                    }
+                } else {
+                    callback(null);
+                }
+            },
+            onerror: function() {
+                callback(null);
+            }
+        });
     }
 
     function setupHelpPanel(f) {
@@ -191,12 +218,19 @@
             let runnerResponse = response;
     
             if(response.result?.completed){
-                f({ reply: "All your tests passed! Good job!" });
-                createFirework();
-                isApiCallInProgress = false;
-                jQuery('#codot-help-level-1, #codot-help-level-2, #codot-help-level-3').prop('disabled', false);
+                getNightImage(function(imageUrl) {
+                    if (imageUrl) {
+                        const message = "Congratulations! All your tests passed. Here's a celebratory image:";
+                        const imageHtml = `<img src="${imageUrl}" alt="Celebratory image" style="max-width: 100%; height: auto;">`;
+                        f({ reply: `${message}\n\n${imageHtml}` });
+                    } else {
+                        f({ reply: "All your tests passed! Good job!" });
+                    }
+                    createFirework();
+                });
                 return;
             }
+
     
             let openAIRequestData = {
                 model: "gpt-3.5-turbo",
