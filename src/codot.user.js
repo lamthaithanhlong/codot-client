@@ -147,27 +147,36 @@
         }
     }
 
-    function getNightImage(callback) {
+    function getNightImage(type, callback) {
+        // Check if callback is a function
+        if (typeof callback !== 'function') {
+            console.error('Callback must be a function');
+            return;
+        }
+    
+        const types = ['ass', 'boobs', 'pussy'];
+        const selectedType = type ? type : types[Math.floor(Math.random() * types.length)];
+    
         GM_xmlhttpRequest({
             method: 'GET',
-            url: 'https://api.night-api.com/images/nsfw',
+            url: `https://api.night-api.com/images/nsfw/${selectedType}`,
             headers: {
-                'authorization': night_api_key
+                'authorization': '80bRyKTh3N-iTFMNCYzbe2gorjciNpB-YUzcwNfRLt'
             },
             onload: function(response) {
                 if (response.status === 200) {
                     const data = JSON.parse(response.responseText);
                     if (data.content && data.content.url) {
-                        callback(data.content.url);
+                        callback(null, data.content.url);
                     } else {
-                        callback(null);
+                        callback('No image URL found in the response', null);
                     }
                 } else {
-                    callback(null);
+                    callback(`Error: ${response.status}`, null);
                 }
             },
-            onerror: function() {
-                callback(null);
+            onerror: function(error) {
+                callback(`Request failed: ${error}`, null);
             }
         });
     }
@@ -218,8 +227,11 @@
             let runnerResponse = response;
     
             if(response.result?.completed){
-                getNightImage(function(imageUrl) {
-                    if (imageUrl) {
+                getNightImage(null, function(error, imageUrl) {
+                    if (error) {
+                        console.error("Error fetching image:", error);
+                        f({ reply: "All your tests passed! Good job!" });
+                    } else if (imageUrl) {
                         const message = "Congratulations! All your tests passed. Here's a celebratory image:";
                         const imageHtml = `<img src="${imageUrl}" alt="Celebratory image" style="max-width: 100%; height: auto;">`;
                         f({ reply: `${message}\n\n${imageHtml}` });
