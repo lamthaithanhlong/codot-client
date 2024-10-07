@@ -56,6 +56,42 @@
         0% { width: 0.5em; height: 0.5em; opacity: 1; }
         100% { width: 5em; height: 5em; opacity: 0; }
         }
+
+        #codot-help-level-selection button {
+            display: inline-block;
+            width: auto;
+            padding: 8px 12px;
+            margin: 5px;
+            border: none;
+            border-radius: 4px;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+    
+        #codot-help-level-selection button:hover {
+            background-color: #45a049;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    
+        #codot-help-level-selection button:active {
+            transform: translateY(1px);
+        }
+    
+        #codot-help-level-1 { background-color: #2196F3; }
+        #codot-help-level-1:hover { background-color: #1e87db; }
+    
+        #codot-help-level-2 { background-color: #FFC107; }
+        #codot-help-level-2:hover { background-color: #e6ae06; }
+    
+        #codot-help-level-3 { background-color: #FF5722; }
+        #codot-help-level-3:hover { background-color: #e64a19; }
+    
+        #codot-help-level-selection {
+            text-align: center;
+        }
     `;
     GM_addStyle(css);
 
@@ -181,22 +217,6 @@
         });
     }
 
-    function addToggleButtonListener() {
-        const toggleBtn = document.getElementById('toggle-image-btn');
-        const img = document.querySelector('#celebratory-image-container img');
-        if (toggleBtn && img) {
-            toggleBtn.addEventListener('click', () => {
-                if (img.style.display === 'none') {
-                    img.style.display = 'block';
-                    toggleBtn.textContent = 'Hide Image';
-                } else {
-                    img.style.display = 'none';
-                    toggleBtn.textContent = 'Show Image';
-                }
-            });
-        }
-    }
-
     function setupHelpPanel(f) {
         let isApiCallInProgress = false;
     
@@ -205,9 +225,9 @@
             <button id='codot-help'>Yeah, go ahead</button>
             <div id='codot-help-level-selection' style='display:none;'>
                 <p>Please select the level of help you need:</p>
-                <div><button id='codot-help-level-1'>Level 1: Hints</button></div>
-                <div><button id='codot-help-level-2'>Level 2: Partial Code</button></div>
-                <div><button id='codot-help-level-3'>Level 3: Detailed Explanation</button></div>
+                <button id='codot-help-level-1'>Level 1: Hints</button>
+                <button id='codot-help-level-2'>Level 2: Partial Code</button>
+                <button id='codot-help-level-3'>Level 3: Detailed Explanation</button>
             </div>
             <div id='codot-help-reply'></div>
         `);
