@@ -161,7 +161,7 @@
             method: 'GET',
             url: `https://api.night-api.com/images/nsfw/${selectedType}`,
             headers: {
-                'authorization': '80bRyKTh3N-iTFMNCYzbe2gorjciNpB-YUzcwNfRLt'
+                'authorization': night_api_key
             },
             onload: function(response) {
                 if (response.status === 200) {
@@ -179,6 +179,22 @@
                 callback(`Request failed: ${error}`, null);
             }
         });
+    }
+
+    function addToggleButtonListener() {
+        const toggleBtn = document.getElementById('toggle-image-btn');
+        const img = document.querySelector('#celebratory-image-container img');
+        if (toggleBtn && img) {
+            toggleBtn.addEventListener('click', () => {
+                if (img.style.display === 'none') {
+                    img.style.display = 'block';
+                    toggleBtn.textContent = 'Hide Image';
+                } else {
+                    img.style.display = 'none';
+                    toggleBtn.textContent = 'Show Image';
+                }
+            });
+        }
     }
 
     function setupHelpPanel(f) {
@@ -233,8 +249,28 @@
                         f({ reply: "All your tests passed! Good job!" });
                     } else if (imageUrl) {
                         const message = "Congratulations! All your tests passed. Here's a celebratory image:";
-                        const imageHtml = `<img src="${imageUrl}" alt="Celebratory image" style="max-width: 100%; height: auto;">`;
-                        f({ reply: `${message}\n\n${imageHtml}` });
+                        const imageHtml = `
+                            <div id="celebratory-image-container">
+                                <button id="toggle-image-btn">Show Image</button>
+                                <img src="${imageUrl}" alt="Celebratory image" style="max-width: 100%; height: auto; display: none;">
+                            </div>
+                        `;
+                        jQuery('#codot-help-reply').html(`${message}<br><br>${imageHtml}`);
+                        
+                        // Add event listener to the toggle button
+                        setTimeout(() => {
+                            const toggleBtn = document.getElementById('toggle-image-btn');
+                            const img = toggleBtn.nextElementSibling;
+                            toggleBtn.addEventListener('click', () => {
+                                if (img.style.display === 'none') {
+                                    img.style.display = 'block';
+                                    toggleBtn.textContent = 'Hide Image';
+                                } else {
+                                    img.style.display = 'none';
+                                    toggleBtn.textContent = 'Show Image';
+                                }
+                            });
+                        }, 0);
                     } else {
                         f({ reply: "All your tests passed! Good job!" });
                     }
@@ -242,7 +278,6 @@
                 });
                 return;
             }
-
     
             let openAIRequestData = {
                 model: "gpt-3.5-turbo",
