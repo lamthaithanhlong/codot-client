@@ -15,6 +15,7 @@
 // @connect      codot-server.fly.dev
 // @connect      api.openai.com
 // @connect      api.night-api.com
+// @connect      us-central1-dreampen-2273f.cloudfunctions.net
 // @require      http://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js
 // @require      http://ajax.googleapis.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://greasyfork.org/scripts/21927-arrive-js/code/arrivejs.js?version=198809
@@ -91,6 +92,14 @@
     
         #codot-help-level-selection {
             text-align: center;
+        }
+
+        #partner-display > div > a:nth-child(1) > img {
+            transition: transform 0.3s ease-in-out;
+        }
+    
+        #partner-display > div > a:nth-child(1) > img:hover {
+            transform: scale(0.9);
         }
     `;
     GM_addStyle(css);
@@ -949,6 +958,70 @@
 
     $(document).arrive('#validate_btn', {existing: true, onceOnly: false}, function(elem) {
         setupForkReview();
+    });
+
+    function setupPornPenAIPanel() {
+        console.log("Setting up PornPen AI panel");
+    
+        function fetchAndDisplayImages() {
+            console.log("Fetching PornPen AI images");
+            GM_xmlhttpRequest({
+                method: 'POST',
+                url: 'https://us-central1-dreampen-2273f.cloudfunctions.net/search',
+                headers: {
+                    "Content-Type": "application/json",
+                    "accept": "*/*",
+                    "accept-language": "en,en-GB-oxendict;q=0.9,vi;q=0.8",
+                    "cache-control": "no-cache",
+                    "origin": "https://pornpen.ai",
+                    "pragma": "no-cache",
+                    "referer": "https://pornpen.ai/",
+                    "sec-ch-ua": '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+                    "sec-ch-ua-mobile": "?0",
+                    "sec-ch-ua-platform": '"macOS"',
+                    "sec-fetch-dest": "empty",
+                    "sec-fetch-mode": "cors",
+                    "sec-fetch-site": "cross-site",
+                    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+                },
+                data: JSON.stringify({"data":{"tags":[],"generator":"anime","source":"search"}}),
+                onload: function(response) {
+                    if (response.status === 200) {
+                        const data = JSON.parse(response.responseText);
+                        console.log("Response:", data);
+                        if (data.result && data.result.length > 0) {
+                            // Randomly select an image from the result array
+                            const randomIndex = Math.floor(Math.random() * data.result.length);
+                            const randomImage = data.result[randomIndex];
+                            const imageUrl = randomImage.imageUrl;
+                            
+                            // Update the image source
+                            jQuery('#partner-display > div > a:nth-child(1) > img').attr('src', imageUrl);
+                            console.log("Image displayed successfully:", imageUrl);
+                        } else {
+                            console.log('No images found.');
+                        }
+                    } else {
+                        console.log('Error fetching images.');
+                    }
+                },
+                onerror: function(error) {
+                    console.log('Request failed: ' + error);
+                }
+            });
+        }
+    
+        // Fetch and display images immediately
+        fetchAndDisplayImages();
+    
+        // Set up an interval to fetch and display images every 10 seconds
+        setInterval(fetchAndDisplayImages, 15000);
+    }
+    
+    // Call setupPornPenAIPanel when the document is ready
+    $(document).ready(function() {
+        console.log("Loaded codot.user.js");
+        setupPornPenAIPanel();
     });
 
 })();
