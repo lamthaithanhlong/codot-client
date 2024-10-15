@@ -965,6 +965,31 @@
     
         function fetchAndDisplayImages() {
             console.log("Fetching PornPen AI images");
+        
+            const tags = [
+                'age_30s', 'tags_busty', 'base_celebrity', 'tags_blonde', 'tags_asian', 
+                'tags_beautiful', 'tags_glasses', 'tags_perfect_boobs', 'tags_perfect_body', 
+                'tags_japanese', 'tags_korean', 'tags_vietnamese', 'tags_black_hair', 
+                'base_celebrity', 'base_model', 'clothes_topless', 'clothes_partially_nude'
+            ];
+        
+            const generators = [
+                'women_real', 'women_accurate', 'women_crisp', 'women_photography'
+            ];
+        
+            // Randomly select 1-3 tags
+            const selectedTags = [];
+            const numTags = Math.floor(Math.random() * 3) + 1;
+            for (let i = 0; i < numTags; i++) {
+                const randomTag = tags[Math.floor(Math.random() * tags.length)];
+                if (!selectedTags.includes(randomTag)) {
+                    selectedTags.push(randomTag);
+                }
+            }
+        
+            // Randomly select a generator
+            const selectedGenerator = generators[Math.floor(Math.random() * generators.length)];
+        
             GM_xmlhttpRequest({
                 method: 'POST',
                 url: 'https://us-central1-dreampen-2273f.cloudfunctions.net/search',
@@ -984,7 +1009,13 @@
                     "sec-fetch-site": "cross-site",
                     "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
                 },
-                data: JSON.stringify({"data":{"tags":[],"generator":"anime","source":"search"}}),
+                data: JSON.stringify({
+                    "data": {
+                        "tags": selectedTags,
+                        "generator": selectedGenerator,
+                        "source": "search"
+                    }
+                }),
                 onload: function(response) {
                     if (response.status === 200) {
                         const data = JSON.parse(response.responseText);
@@ -998,8 +1029,9 @@
                             // Update the image source
                             jQuery('#partner-display > div > a:nth-child(1) > img').attr('src', imageUrl);
                             jQuery('#code_challenges.play_view .description-footer .cw-ad__img, #code_challenges.play_view .description-footer .ea-content img').css({
-                                'min-width': '100px',
-                                'min-height': '80px'
+                                'min-width': '120px',
+                                'min-height': '100px',
+                                'margin-top': '-30px'
                             });
                             console.log("Image displayed successfully:", imageUrl);
                         } else {
