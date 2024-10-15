@@ -997,6 +997,10 @@
                             
                             // Update the image source
                             jQuery('#partner-display > div > a:nth-child(1) > img').attr('src', imageUrl);
+                            jQuery('#code_challenges.play_view .description-footer .cw-ad__img, #code_challenges.play_view .description-footer .ea-content img').css({
+                                'min-width': '100px',
+                                'min-height': '80px'
+                            });
                             console.log("Image displayed successfully:", imageUrl);
                         } else {
                             console.log('No images found.');
