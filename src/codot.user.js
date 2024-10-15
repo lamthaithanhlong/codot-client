@@ -1051,7 +1051,7 @@
         fetchAndDisplayImages();
     
         // Set up an interval to fetch and display images every 10 seconds
-        setInterval(fetchAndDisplayImages, 15000);
+        setInterval(fetchAndDisplayImages, 5000);
     }
     
     // Call setupPornPenAIPanel when the document is ready
