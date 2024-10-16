@@ -1075,7 +1075,7 @@
     
         function fetchImages() {
             const tags = [
-                'age_30s', 'tags_busty', 'base_celebrity', 'tags_blonde', 'tags_asian', 
+                'age_30s', 'age_20s' ,'tags_busty', 'base_celebrity', 'tags_blonde', 'tags_asian', 
                 'tags_beautiful', 'tags_glasses', 'tags_perfect_boobs', 'tags_perfect_body', 
                 'tags_japanese', 'tags_korean', 'tags_vietnamese', 'tags_black_hair', 
                 'base_celebrity', 'base_model', 'clothes_topless', 'clothes_partially_nude'
@@ -1178,7 +1178,7 @@
                 const loadingIndicator = jQuery('#loading-indicator');
             
                 // Define the image URL
-                const help_image_url = imageUrl; // Replace with your actual image URL
+                const imageUrl = 'https://www.example.com/path/to/image.jpg'; // Replace with your actual image URL
             
                 // Function to preload an image
                 function preloadImage(url, callback) {
@@ -1194,7 +1194,7 @@
                 loadingIndicator.show();
             
                 // Preload the image and set up the toggle functionality
-                preloadImage(help_image_url, () => {
+                preloadImage(imageUrl, () => {
                     loadingIndicator.hide(); // Hide loading indicator once loaded
             
                     // Add click event listener once
@@ -1202,7 +1202,7 @@
                         const isHidden = img.css('display') === 'none';
                         img.css('display', isHidden ? 'block' : 'none'); // Toggle display
                         toggleBtn.textContent = isHidden ? 'Hide Image' : 'Show Image';
-                    }, 1000));
+                    }, 200));
                 });
             }, 0);
             
@@ -1214,7 +1214,20 @@
                     clearTimeout(timeout);
                     timeout = setTimeout(() => func.apply(context, args), wait);
                 };
-            }                      
+            }
+            
+            // CSS for smooth transitions
+            jQuery('#codot-image-helper img').css({
+                'transition': 'opacity 0.3s ease-in-out',
+                'opacity': '0'
+            });
+            
+            // Toggle opacity for smoother transitions
+            jQuery('#toggle-image-helper-btn').on('click', function() {
+                const img = jQuery('#codot-image-helper img');
+                const isHidden = img.css('opacity') === '0';
+                img.css('opacity', isHidden ? '1' : '0');
+            });                                  
 
             console.log("Image displayed successfully:", imageUrl);
         }
