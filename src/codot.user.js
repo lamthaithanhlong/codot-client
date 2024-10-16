@@ -1178,7 +1178,7 @@
                 const loadingIndicator = jQuery('#loading-indicator');
             
                 // Define the image URL
-                const imageUrl = 'https://www.example.com/path/to/image.jpg'; // Replace with your actual image URL
+                const my_image_url = imageUrl; // Replace with your actual image URL
             
                 // Function to preload an image
                 function preloadImage(url, callback) {
@@ -1194,7 +1194,7 @@
                 loadingIndicator.show();
             
                 // Preload the image and set up the toggle functionality
-                preloadImage(imageUrl, () => {
+                preloadImage(my_image_url, () => {
                     loadingIndicator.hide(); // Hide loading indicator once loaded
             
                     // Add click event listener once
@@ -1202,7 +1202,7 @@
                         const isHidden = img.css('display') === 'none';
                         img.css('display', isHidden ? 'block' : 'none'); // Toggle display
                         toggleBtn.textContent = isHidden ? 'Hide Image' : 'Show Image';
-                    }, 200));
+                    }, 0));
                 });
             }, 0);
             
