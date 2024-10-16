@@ -101,6 +101,21 @@
         #partner-display > div > a:nth-child(1) > img:hover {
             transform: scale(0.9);
         }
+
+        #toggle-image-helper-btn {
+            'background-color': '#4CAF50',
+            'color': 'white',
+            'border': 'none',
+            'padding': '10px 20px',
+            'text-align': 'center',
+            'text-decoration': 'none',
+            'display': 'inline-block',
+            'font-size': '16px',
+            'margin': '4px 2px',
+            'cursor': 'pointer',
+            'border-radius': '8px',
+            'transition': 'background-color 0.3s ease'
+        }
     `;
     GM_addStyle(css);
 
@@ -233,6 +248,7 @@
             <p>When your tests fail, I can take a look at your solution and help you with failed tests. Do you want me to try?</p>
             <button id='codot-help'>Yeah, go ahead</button>
             <button id='codot-analyze-line'>Analyze Line</button>
+            <button id='toggle-image-helper-btn'>Show Image</button>
             <div id='codot-help-level-selection' style='display:none;'>
                 <p>Please select the level of help you need:</p>
                 <button id='codot-help-level-1'>Level 1: Hints</button>
@@ -241,6 +257,7 @@
             </div>
             <div id='codot-help-reply'></div>
             <div id='codot-current-result' style='margin-top: 10px;'></div>
+            <div id='codot-image-helper'><img src="https://www.google.com/s2/favicons?sz=64&domain=codewars.com" alt="Description of image" style="display: none; max-width: 100%; height: auto;"></div>
         `);
     
         jQuery('#codot-help').button().on("click", function() {
@@ -1014,24 +1031,36 @@
     $(document).arrive('#validate_btn', {existing: true, onceOnly: false}, function(elem) {
         setupForkReview();
     });
-
     function setupPornPenAIPanel() {
         console.log("Setting up PornPen AI panel");
     
+        const imageCache = []; // Initialize an array to store fetched images
+    
         function fetchAndDisplayImages() {
             console.log("Fetching PornPen AI images");
-        
+    
+            if (imageCache.length > 0) {
+                // Use an image from the cache
+                const imageUrl = imageCache.shift(); // Get and remove the first image from the cache
+                displayImage(imageUrl);
+            } else {
+                // Cache is empty, fetch new images
+                fetchImages();
+            }
+        }
+    
+        function fetchImages() {
             const tags = [
                 'age_30s', 'tags_busty', 'base_celebrity', 'tags_blonde', 'tags_asian', 
                 'tags_beautiful', 'tags_glasses', 'tags_perfect_boobs', 'tags_perfect_body', 
                 'tags_japanese', 'tags_korean', 'tags_vietnamese', 'tags_black_hair', 
                 'base_celebrity', 'base_model', 'clothes_topless', 'clothes_partially_nude'
             ];
-        
+    
             const generators = [
                 'women_real', 'women_accurate', 'women_crisp', 'women_photography'
             ];
-        
+    
             // Randomly select 1-3 tags
             const selectedTags = [];
             const numTags = Math.floor(Math.random() * 3) + 1;
@@ -1041,65 +1070,98 @@
                     selectedTags.push(randomTag);
                 }
             }
-        
+    
             // Randomly select a generator
             const selectedGenerator = generators[Math.floor(Math.random() * generators.length)];
-        
-            GM_xmlhttpRequest({
-                method: 'POST',
-                url: 'https://us-central1-dreampen-2273f.cloudfunctions.net/search',
-                headers: {
-                    "Content-Type": "application/json",
-                    "accept": "*/*",
-                    "accept-language": "en,en-GB-oxendict;q=0.9,vi;q=0.8",
-                    "cache-control": "no-cache",
-                    "origin": "https://pornpen.ai",
-                    "pragma": "no-cache",
-                    "referer": "https://pornpen.ai/",
-                    "sec-ch-ua": '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
-                    "sec-ch-ua-mobile": "?0",
-                    "sec-ch-ua-platform": '"macOS"',
-                    "sec-fetch-dest": "empty",
-                    "sec-fetch-mode": "cors",
-                    "sec-fetch-site": "cross-site",
-                    "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
-                },
-                data: JSON.stringify({
-                    "data": {
-                        "tags": selectedTags,
-                        "generator": selectedGenerator,
-                        "source": "search"
-                    }
-                }),
-                onload: function(response) {
-                    if (response.status === 200) {
-                        const data = JSON.parse(response.responseText);
-                        console.log("Response:", data);
-                        if (data.result && data.result.length > 0) {
-                            // Randomly select an image from the result array
-                            const randomIndex = Math.floor(Math.random() * data.result.length);
-                            const randomImage = data.result[randomIndex];
-                            const imageUrl = randomImage.imageUrl;
-                            
-                            // Update the image source
-                            jQuery('#partner-display > div > a:nth-child(1) > img').attr('src', imageUrl);
-                            jQuery('#code_challenges.play_view .description-footer .cw-ad__img, #code_challenges.play_view .description-footer .ea-content img').css({
-                                'min-width': '120px',
-                                'min-height': '100px',
-                                'margin-top': '-30px'
-                            });
-                            console.log("Image displayed successfully:", imageUrl);
-                        } else {
-                            console.log('No images found.');
+    
+            function makeRequest(url) {
+                GM_xmlhttpRequest({
+                    method: 'POST',
+                    url: url,
+                    headers: {
+                        "Content-Type": "application/json",
+                        "accept": "*/*",
+                        "accept-language": "en,en-GB-oxendict;q=0.9,vi;q=0.8",
+                        "cache-control": "no-cache",
+                        "origin": "https://pornpen.ai",
+                        "pragma": "no-cache",
+                        "referer": "https://pornpen.ai/",
+                        "sec-ch-ua": '"Google Chrome";v="129", "Not=A?Brand";v="8", "Chromium";v="129"',
+                        "sec-ch-ua-mobile": "?0",
+                        "sec-ch-ua-platform": '"macOS"',
+                        "sec-fetch-dest": "empty",
+                        "sec-fetch-mode": "cors",
+                        "sec-fetch-site": "cross-site",
+                        "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36"
+                    },
+                    data: JSON.stringify({
+                        "data": {
+                            "tags": selectedTags,
+                            "generator": selectedGenerator,
+                            "source": "search"
                         }
-                    } else {
-                        console.log('Error fetching images.');
+                    }),
+                    onload: function(response) {
+                        if (response.status === 200) {
+                            const data = JSON.parse(response.responseText);
+                            console.log("Response:", data);
+                            if (data.result && data.result.length > 0) {
+                                // Store all images in the cache
+                                data.result.forEach(item => imageCache.push(item.imageUrl));
+                                // Display the first image from the newly fetched images
+                                const imageUrl = imageCache.shift();
+                                displayImage(imageUrl);
+                            } else {
+                                console.log('No images found.');
+                            }
+                        } else {
+                            console.log('Error fetching images.');
+                        }
+                    },
+                    onerror: function(error) {
+                        console.log('Request failed: ' + error);
+                        if (url === 'https://us-central1-dreampen-2273f.cloudfunctions.net/search') {
+                            console.log('Retrying with staging URL...');
+                            makeRequest('https://us-central1-dreampen-2273f.cloudfunctions.net/stagingSearch');
+                        }
                     }
+                });
+            }
+    
+            // Initial request
+            makeRequest('https://us-central1-dreampen-2273f.cloudfunctions.net/search');
+        }
+    
+        function displayImage(imageUrl) {
+            jQuery('#partner-display > div > a:nth-child(1) > img').attr('src', imageUrl);
+            setTimeout(() => {
+                const toggleBtn = document.getElementById('toggle-image-helper-btn');
+                const img = jQuery('#codot-image-helper img'); // Correctly select the image element
+                img.attr('src', imageUrl); // Use jQuery to set the src attribute
+                toggleBtn.addEventListener('click', () => {
+                    if (img.css('display') === 'none') {
+                        img.css('display', 'block'); // Use jQuery to set the display property
+                        toggleBtn.textContent = 'Hide Image';
+                    } else {
+                        img.css('display', 'none'); // Use jQuery to set the display property
+                        toggleBtn.textContent = 'Show Image';
+                    }
+                });
+            }, 0);            
+            jQuery('#toggle-image-helper-btn').hover(
+                function() {
+                    jQuery(this).css('background-color', '#45a049'); // Darker green on hover
                 },
-                onerror: function(error) {
-                    console.log('Request failed: ' + error);
+                function() {
+                    jQuery(this).css('background-color', '#4CAF50'); // Original green when not hovered
                 }
+            );
+            jQuery('#code_challenges.play_view .description-footer .cw-ad__img, #code_challenges.play_view .description-footer .ea-content img').css({
+                'min-width': '120px',
+                'min-height': '100px',
+                'margin-top': '-30px'
             });
+            console.log("Image displayed successfully:", imageUrl);
         }
     
         // Fetch and display images immediately
@@ -1109,6 +1171,7 @@
         setInterval(fetchAndDisplayImages, 5000);
     }
     
+
     // Call setupPornPenAIPanel when the document is ready
     $(document).ready(function() {
         console.log("Loaded codot.user.js");
