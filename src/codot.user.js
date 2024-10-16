@@ -188,6 +188,27 @@
         "Uncle Bob would be proud."
     ];
 
+    // Attach a click event listener to the #validate_btn
+    jQuery('#validate_btn').on('click', function() {
+        const targetNode = document.querySelector('#fixture > div.text-editor.js-editor.has-shadow > div.CodeMirror.cm-s-codewars');
+
+        if (!targetNode) {
+            console.error('Target node not found');
+            return;
+        }
+
+        const observer = new MutationObserver((mutationsList) => {
+            for (const mutation of mutationsList) {
+                if (mutation.type === 'attributes' && targetNode.classList.contains('has-green-border')) {
+                    createFirework(); // Trigger the firework effect
+                    observer.disconnect(); // Stop observing after the firework is triggered
+                }
+            }
+        });
+
+        observer.observe(targetNode, { attributes: true, attributeFilter: ['class'] });
+    });
+
     function getRandomNoise() {
         return noises[Math.floor(Math.random() * noises.length)];
     }
