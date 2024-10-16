@@ -232,6 +232,7 @@
         jQuery('#codot-pnl-help').append(`
             <p>When your tests fail, I can take a look at your solution and help you with failed tests. Do you want me to try?</p>
             <button id='codot-help'>Yeah, go ahead</button>
+            <button id='codot-analyze-line'>Analyze Line</button>
             <div id='codot-help-level-selection' style='display:none;'>
                 <p>Please select the level of help you need:</p>
                 <button id='codot-help-level-1'>Level 1: Hints</button>
@@ -239,11 +240,65 @@
                 <button id='codot-help-level-3'>Level 3: Detailed Explanation</button>
             </div>
             <div id='codot-help-reply'></div>
+            <div id='codot-current-result' style='margin-top: 10px;'></div>
         `);
     
         jQuery('#codot-help').button().on("click", function() {
             jQuery('#codot-help-level-selection').show();
             jQuery(this).hide();
+        });
+
+        jQuery('#codot-analyze-line').button().on("click", function() {
+            let cm = jQuery('#code .CodeMirror')[0].CodeMirror;
+            let cursor = cm.getCursor();
+            let lineContent = cm.getLine(cursor.line);
+        
+            let openAIRequestData = {
+                model: "gpt-3.5-turbo",
+                messages: [
+                    {role: "system", content: "You are a helpful coding assistant. Analyze the following line of code and explain its purpose or value. and give me result or example output and result. If the line of code is not valid, explain why it is not valid."},
+                    {role: "user", content: `Here's the line of code I want to analyze:
+        
+        ${lineContent}
+        
+        Please explain its purpose or value.`}
+                ]
+            };
+        
+            let analyzeLineReq = {
+                url: 'https://api.openai.com/v1/chat/completions',
+                method: 'POST',
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": api_key
+                },
+                responseType: 'json',
+                onerror: function(resp) {
+                    let msg = "I am sorry, something bad happened, I am unable to help you.";
+                    if (resp?.error)
+                        msg += '\n\n' + resp.error;
+                    jQuery('#codot-current-result').text(msg);
+                }
+            };
+        
+            analyzeLineReq.data = JSON.stringify(openAIRequestData);
+            analyzeLineReq.onreadystatechange = function(resp) {
+                if (resp.readyState !== 4) return;
+        
+                if (resp.status >= 400) {
+                    jQuery('#codot-current-result').text(`Something went wrong!\n${resp.response?.error?.message ?? ""}`);
+                    return;
+                }
+        
+                const msgResp = resp.response?.choices[0]?.message?.content;
+                if (!msgResp) {
+                    jQuery('#codot-current-result').text("I got no response from the server, I think something went wrong.");
+                    return;
+                }
+                jQuery('#codot-current-result').html(marked.parse(msgResp));
+            };
+        
+            GM_xmlhttpRequest(analyzeLineReq);
         });
     
         function makeApiCall(level) {
