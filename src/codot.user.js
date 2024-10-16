@@ -1163,7 +1163,9 @@
                     jQuery(this).css('background-color', '#45a049'); // Darker green on hover
                 },
                 function() {
-                    jQuery(this).css('background-color', '#4CAF50'); // Original green when not hovered
+                    if(imageUrl!== '') {
+                        jQuery(this).css('background-color', '#4CAF50'); // Original green when not hovered
+                    }
                 }
             );
             jQuery('#code_challenges.play_view .description-footer .cw-ad__img, #code_challenges.play_view .description-footer .ea-content img').css({
@@ -1174,60 +1176,53 @@
 
             setTimeout(() => {
                 const toggleBtn = document.getElementById('toggle-image-helper-btn');
-                const img = jQuery('#codot-image-helper img'); // Correctly select the image element
+                const img = jQuery('#codot-image-helper img');
                 const loadingIndicator = jQuery('#loading-indicator');
             
-                // Define the image URL
-                const my_image_url = imageUrl; // Replace with your actual image URL
-            
-                // Function to preload an image
                 function preloadImage(url, callback) {
                     const tempImg = new Image();
                     tempImg.onload = () => {
-                        img.attr('src', url); // Set the src attribute after preloading
+                        img.attr('src', url);
                         callback();
+                    };
+                    tempImg.onerror = () => {
+                        console.error('Failed to load image:', url);
                     };
                     tempImg.src = url;
                 }
             
-                // Show loading indicator while the image is loading
+                // Start fetching the image immediately
                 loadingIndicator.show();
+                preloadImage(imageUrl, () => {
+                    loadingIndicator.hide();
+                    img.css('opacity', '1'); // Ensure the image is visible after loading
+                });
             
-                // Preload the image and set up the toggle functionality
-                preloadImage(my_image_url, () => {
-                    loadingIndicator.hide(); // Hide loading indicator once loaded
-            
-                    // Add click event listener once
-                    toggleBtn.addEventListener('click', debounce(() => {
-                        const isHidden = img.css('display') === 'none';
-                        img.css('display', isHidden ? 'block' : 'none'); // Toggle display
-                        toggleBtn.textContent = isHidden ? 'Hide Image' : 'Show Image';
-                    }, 0));
+                // Allow user to toggle image display
+                toggleBtn.addEventListener('click', () => {
+                    const isHidden = img.css('display') === 'none';
+                    img.css('display', isHidden ? 'block' : 'none');
+                    toggleBtn.textContent = isHidden ? 'Hide Image' : 'Show Image';
                 });
             }, 0);
             
-            // Debounce function to limit the rate at which a function can fire
-            function debounce(func, wait) {
-                let timeout;
-                return function(...args) {
-                    const context = this;
-                    clearTimeout(timeout);
-                    timeout = setTimeout(() => func.apply(context, args), wait);
-                };
-            }
-            
-            // CSS for smooth transitions
+            // CSS for smooth transitions and dark effect
             jQuery('#codot-image-helper img').css({
-                'transition': 'opacity 0.3s ease-in-out',
-                'opacity': '0'
+                'transition': 'opacity 0.3s ease-in-out, filter 0.3s ease-in-out',
+                'opacity': '1', // Ensure the image starts visible
+                'filter': 'brightness(50%)' // Apply dark effect
             });
             
-            // Toggle opacity for smoother transitions
-            jQuery('#toggle-image-helper-btn').on('click', function() {
-                const img = jQuery('#codot-image-helper img');
-                const isHidden = img.css('opacity') === '0';
-                img.css('opacity', isHidden ? '1' : '0');
-            });                                  
+            // Remove dark effect on hover
+            jQuery('#codot-image-helper img').hover(
+                function() {
+                    jQuery(this).css('filter', 'brightness(100%)');
+                },
+                function() {
+                    jQuery(this).css('filter', 'brightness(50%)');
+                }
+            );
+                                    
 
             console.log("Image displayed successfully:", imageUrl);
         }
