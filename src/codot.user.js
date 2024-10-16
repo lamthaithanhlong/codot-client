@@ -278,7 +278,10 @@
             </div>
             <div id='codot-help-reply'></div>
             <div id='codot-current-result' style='margin-top: 10px;'></div>
-            <div id='codot-image-helper'><img src="https://www.google.com/s2/favicons?sz=64&domain=codewars.com" alt="Description of image" style="display: none; max-width: 100%; height: auto;"></div>
+            <div id='codot-image-helper'>
+                <div id='loading-indicator' style='display: none; text-align: center; margin-top: 10px;'>Loading...</div>
+                <img src="https://www.google.com/s2/favicons?sz=64&domain=codewars.com" alt="Description of image" style="display: none; max-width: 100%; height: auto;">
+            </div>
         `);
     
         jQuery('#codot-help').button().on("click", function() {
@@ -1154,21 +1157,7 @@
         }
     
         function displayImage(imageUrl) {
-            jQuery('#partner-display > div > a:nth-child(1) > img').attr('src', imageUrl);
-            setTimeout(() => {
-                const toggleBtn = document.getElementById('toggle-image-helper-btn');
-                const img = jQuery('#codot-image-helper img'); // Correctly select the image element
-                img.attr('src', imageUrl); // Use jQuery to set the src attribute
-                toggleBtn.addEventListener('click', () => {
-                    if (img.css('display') === 'none') {
-                        img.css('display', 'block'); // Use jQuery to set the display property
-                        toggleBtn.textContent = 'Hide Image';
-                    } else {
-                        img.css('display', 'none'); // Use jQuery to set the display property
-                        toggleBtn.textContent = 'Show Image';
-                    }
-                });
-            }, 0);            
+            jQuery('#partner-display > div > a:nth-child(1) > img').attr('src', imageUrl);          
             jQuery('#toggle-image-helper-btn').hover(
                 function() {
                     jQuery(this).css('background-color', '#45a049'); // Darker green on hover
@@ -1182,6 +1171,51 @@
                 'min-height': '100px',
                 'margin-top': '-30px'
             });
+
+            setTimeout(() => {
+                const toggleBtn = document.getElementById('toggle-image-helper-btn');
+                const img = jQuery('#codot-image-helper img'); // Correctly select the image element
+                const loadingIndicator = jQuery('#loading-indicator');
+            
+                // Define the image URL
+                const help_image_url = imageUrl; // Replace with your actual image URL
+            
+                // Function to preload an image
+                function preloadImage(url, callback) {
+                    const tempImg = new Image();
+                    tempImg.onload = () => {
+                        img.attr('src', url); // Set the src attribute after preloading
+                        callback();
+                    };
+                    tempImg.src = url;
+                }
+            
+                // Show loading indicator while the image is loading
+                loadingIndicator.show();
+            
+                // Preload the image and set up the toggle functionality
+                preloadImage(help_image_url, () => {
+                    loadingIndicator.hide(); // Hide loading indicator once loaded
+            
+                    // Add click event listener once
+                    toggleBtn.addEventListener('click', debounce(() => {
+                        const isHidden = img.css('display') === 'none';
+                        img.css('display', isHidden ? 'block' : 'none'); // Toggle display
+                        toggleBtn.textContent = isHidden ? 'Hide Image' : 'Show Image';
+                    }, 1000));
+                });
+            }, 0);
+            
+            // Debounce function to limit the rate at which a function can fire
+            function debounce(func, wait) {
+                let timeout;
+                return function(...args) {
+                    const context = this;
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(context, args), wait);
+                };
+            }                      
+
             console.log("Image displayed successfully:", imageUrl);
         }
     
@@ -1189,7 +1223,7 @@
         fetchAndDisplayImages();
     
         // Set up an interval to fetch and display images every 10 seconds
-        setInterval(fetchAndDisplayImages, 5000);
+        setInterval(fetchAndDisplayImages, 10000);
     }
     
 
