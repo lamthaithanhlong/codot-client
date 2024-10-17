@@ -269,7 +269,7 @@
             <p>When your tests fail, I can take a look at your solution and help you with failed tests. Do you want me to try?</p>
             <button id='codot-help'>Yeah, go ahead</button>
             <button id='codot-analyze-line'>Analyze Line</button>
-            <button id='toggle-image-helper-btn'>Show Image</button>
+            <button id='toggle-image-helper-btn' class='ui-button ui-corner-all ui-widget'>Show Image</button>
             <div id='codot-help-level-selection' style='display:none;'>
                 <p>Please select the level of help you need:</p>
                 <button id='codot-help-level-1'>Level 1: Hints</button>
