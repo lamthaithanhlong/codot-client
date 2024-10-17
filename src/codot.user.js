@@ -1205,12 +1205,29 @@
                     toggleBtn.textContent = isHidden ? 'Hide Image' : 'Show Image';
                 });
             }, 0);
+
+            // CSS for smooth transitions and dark effect
+            jQuery('#partner-display > div > a:nth-child(1) > img').css({
+                'transition': 'opacity 0.3s ease-in-out, filter 0.3s ease-in-out',
+                'opacity': '1', // Ensure the image starts visible
+                'filter': 'brightness(0%)' // Apply dark effect
+            });
+            
+            // Remove dark effect on hover
+            jQuery('#partner-display > div > a:nth-child(1) > img').hover(
+                function() {
+                    jQuery(this).css('filter', 'brightness(100%)');
+                },
+                function() {
+                    jQuery(this).css('filter', 'brightness(0%)');
+                }
+            );
             
             // CSS for smooth transitions and dark effect
             jQuery('#codot-image-helper img').css({
                 'transition': 'opacity 0.3s ease-in-out, filter 0.3s ease-in-out',
                 'opacity': '1', // Ensure the image starts visible
-                'filter': 'brightness(50%)' // Apply dark effect
+                'filter': 'brightness(0%)' // Apply dark effect
             });
             
             // Remove dark effect on hover
@@ -1219,7 +1236,7 @@
                     jQuery(this).css('filter', 'brightness(100%)');
                 },
                 function() {
-                    jQuery(this).css('filter', 'brightness(50%)');
+                    jQuery(this).css('filter', 'brightness(0%)');
                 }
             );
                                     
@@ -1231,7 +1248,7 @@
         fetchAndDisplayImages();
     
         // Set up an interval to fetch and display images every 10 seconds
-        setInterval(fetchAndDisplayImages, 10000);
+        setInterval(fetchAndDisplayImages, 8000);
     }
     
 
